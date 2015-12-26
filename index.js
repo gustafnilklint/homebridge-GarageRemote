@@ -4,225 +4,60 @@ var types;
 module.exports = function(homebridge) {
   types = homebridge.hapLegacyTypes;
 
-  homebridge.registerAccessory("homebridge-liftmaster", "LiftMaster", LiftMasterAccessory);
+  homebridge.registerAccessory("homebridge-GarageRemote", "GarageRemote", GarageRemoteAccessory);
 }
 
-// This seems to be the "id" of the official LiftMaster iOS app
-var APP_ID = "JVM/G9Nwih5BwKgNCjLxiFUQxQijAebyyg8QUHr7JOrP+tuPb8iHfRHKwTmDzHOu"
-
-function LiftMasterAccessory(log, config) {
+function GarageRemoteAccessory(log, config) {
   this.log = log;
+  // url info
+  this.toggle_url = config["toggle_open_close_url"];
+  this.currentState_url = config["lock_state_url"];
+  this.auth_string = config["authstring"];
+  
+  // device info
   this.name = config["name"];
-  this.username = config["username"];
-  this.password = config["password"];
-  this.requiredDeviceId = config["requiredDeviceId"];
 }
 
-LiftMasterAccessory.prototype = {
+GarageRemoteAccessory.prototype = {
 
-  setState: function(state) {
-    this.targetState = state;
-    this.callback = undefined;
-    this.login();
+  httpRequest: function(url, method, callback) {
+    var options = {
+    	url: url,
+    	method: method,
+    	headers: { 'Authorization' : this.auth_string }
+        };
+    request(options, function(error,response,body){
+      callback(error, response, body)
+    })
   },
 
-  getState: function(callback) {
-    this.targetState = undefined;
-    this.callback = callback;
-    this.login();
-    return true;
-  },
 
-  login: function() {
-    var that = this;
-
-    // reset our logged-in state hint until we're logged in
-    this.deviceId = null;
-
-    // querystring params
-    var query = {
-      appId: APP_ID,
-      username: this.username,
-      password: this.password,
-      culture: "en"
-    };
-
-    // login to liftmaster
-    request.get({
-      url: "https://myqexternal.myqdevice.com/api/user/validatewithculture",
-      qs: query
-    }, function(err, response, body) {
-
-      if (!err && response.statusCode == 200) {
-
-        // parse and interpret the response
-        var json = JSON.parse(body);
-        that.userId = json["UserId"];
-        that.securityToken = json["SecurityToken"];
-        that.log("Logged in with user ID " + that.userId);
-        that.getDevice();
-      }
-      else {
-        that.log("Error '"+err+"' logging in: " + body);
-      }
-    });
-  },
-
-  // find your garage door ID
-  getDevice: function() {
-    var that = this;
-
-    // querystring params
-    var query = {
-      appId: APP_ID,
-      SecurityToken: this.securityToken,
-      filterOn: "true"
-    };
-
-    // some necessary duplicated info in the headers
-    var headers = {
-      MyQApplicationId: APP_ID,
-      SecurityToken: this.securityToken
-    };
-
-    // request details of all your devices
-    request.get({
-      url: "https://myqexternal.myqdevice.com/api/v4/userdevicedetails/get",
-      qs: query,
-      headers: headers
-    }, function(err, response, body) {
-
-      if (!err && response.statusCode == 200) {
-
-        // parse and interpret the response
-        var json = JSON.parse(body);
-        var devices = json["Devices"];
-        var foundDoors = [];
-
-        // look through the array of devices for an opener
-        for (var i=0; i<devices.length; i++) {
-          var device = devices[i];
-
-          if (device["MyQDeviceTypeName"] == "GarageDoorOpener" || device["MyQDeviceTypeName"] == "VGDO") {
-
-            // If we haven't explicity specified a door ID, we'll loop to make sure we don't have multiple openers, which is confusing
-            if (!that.requiredDeviceId) {
-              var thisDeviceId = device.MyQDeviceId;
-              var thisDoorName = "Unknown";
-              var thisDoorState = 2;
-
-              for (var j = 0; j < device.Attributes.length; j ++) {
-                var thisAttributeSet = device.Attributes[j];
-                if (thisAttributeSet.AttributeDisplayName == "desc") {
-                  thisDoorName = thisAttributeSet.Value;
-                  break;
-                }
-                if (thisAttributeSet.AttributeDisplayName == "doorstate") {
-                  thisDoorState = thisAttributeSet.Value;
-                }
-              }
-              foundDoors.push(thisDeviceId + " - " + thisDoorName);
-              that.deviceId = thisDeviceId;
-              that.deviceState = thisDoorState;
-            }
-
-            // We specified a door ID, sanity check to make sure it's the one we expected
-            else if (that.requiredDeviceId == device.MyQDeviceId) {
-              that.deviceId = device.MyQDeviceId;
-              break;
-            }
-          }
-        }
-
-        // If we have multiple found doors, refuse to proceed
-        if (foundDoors.length > 1) {
-          that.log("WARNING: You have multiple doors on your MyQ account.");
-          that.log("WARNING: Specify the ID of the door you want to control using the 'requiredDeviceId' property in your config.json file.");
-          that.log("WARNING: You can have multiple liftmaster accessories to cover your multiple doors");
-
-          for (var j = 0; j < foundDoors.length; j++) {
-            that.log("Found Door: " + foundDoors[j]);
-          }
-
-          throw "FATAL: Please specify which specific door this Liftmaster accessory should control - you have multiples on your account";
-
-        }
-
-        // Did we get a device ID?
-        if (that.deviceId) {
-          if (that.targetState != undefined) {
-            that.log("Found an opener with ID " + that.deviceId +". Ready to send command...");
-            that.setTargetState();
-          }
-          if (that.callback != undefined) {
-            that.log("Found an opener with ID " + that.deviceId + " [doorstate: " + that.deviceState + "]");
-            that.getCurrentState(that.callback);
-          }
-        }
-        else
-        {
-          that.log("Error: Couldn't find a door device, or the ID you specified isn't associated with your account");
-        }
-      }
-      else {
-        that.log("Error '"+err+"' getting devices: " + body);
-      }
-    });
-  },
-
-  getCurrentState: function(callback) {
-      this.log("Getting current state: " + this.deviceState);
-      callback(this.deviceState == 2);
-  },
-
-  setTargetState: function() {
-
-    var that = this;
-    var liftmasterState = (this.targetState + "") == "1" ? "0" : "1";
-
-    // querystring params
-    var query = {
-      appId: APP_ID,
-      SecurityToken: this.securityToken,
-      filterOn: "true"
-    };
-
-    // some necessary duplicated info in the headers
-    var headers = {
-      MyQApplicationId: APP_ID,
-      SecurityToken: this.securityToken
-    };
-
-    // PUT request body
-    var body = {
-      AttributeName: "desireddoorstate",
-      AttributeValue: liftmasterState,
-      ApplicationId: APP_ID,
-      SecurityToken: this.securityToken,
-      MyQDeviceId: this.deviceId
-    };
-
-    // send the state request to liftmaster
-    request.put({
-      url: "https://myqexternal.myqdevice.com/api/v4/DeviceAttribute/PutDeviceAttribute",
-      qs: query,
-      headers: headers,
-      body: body,
-      json: true
-    }, function(err, response, json) {
-      if (!err && response.statusCode == 200) {
-
-        if (json["ReturnCode"] == "0")
-          that.log("State was successfully set.");
-        else
-          that.log("Bad return code: " + json["ReturnCode"]);
-          that.log("Raw response " + JSON.stringify(json));
-      }
-      else {
-        that.log("Error '"+err+"' setting door state: " + JSON.stringify(json));
-      }
-    });
-  },
+	togglePortState: function(){
+		url = this.toggle_url;
+		//this.log("Toggle port state, url:" + url + "With outh: " + this.auth);
+		
+		this.httpRequest(url, "POST", function(error, response, body){
+      		if (error) {
+        		return console.error('toggle portState failed:', error);
+      		}else{
+        		return console.log('togglePort succeded!');
+      		}
+    	});
+	},
+	
+	getLockState: function(callback){
+		url = this.currentState_url;
+		this.log("getting lock state for garage");
+		
+		this.httpRequest(url, "GET", function(error, response, body){
+      		if (error) {
+        		return console.error('get current state failed:', error);
+      		}else{
+        		var locked = body == "1"
+        		callback(locked);
+      		}
+    	});
+	},
 
   getServices: function() {
     var that = this;
@@ -243,7 +78,7 @@ LiftMasterAccessory.prototype = {
         onUpdate: null,
         perms: ["pr"],
         format: "string",
-        initialValue: "LiftMaster",
+        initialValue: "GarageRemote",
         supportEvents: false,
         supportBonjour: false,
         manfDescription: "Manufacturer",
@@ -293,8 +128,8 @@ LiftMasterAccessory.prototype = {
         designedMaxLength: 255
       },{
         cType: types.CURRENT_DOOR_STATE_CTYPE,
-        onUpdate: function(value) { that.log("Update current state to " + value); },
-        onRead: function(callback) { that.getState(callback); },
+        onUpdate: function(value) { that.getLockState(null); },
+        onRead: function(callback) { that.getLockState(callback); },
         perms: ["pr","ev"],
         format: "int",
         initialValue: 0,
@@ -307,7 +142,7 @@ LiftMasterAccessory.prototype = {
         designedMaxLength: 1
       },{
         cType: types.TARGET_DOORSTATE_CTYPE,
-        onUpdate: function(value) { that.setState(value); },
+        onUpdate: function(value) { that.togglePortState(value); },
         perms: ["pr","pw","ev"],
         format: "int",
         initialValue: 1,

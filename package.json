@@ -1,17 +1,17 @@
 {
-  "name": "homebridge-liftmaster",
+  "name": "homebridge-GarageRemote",
   "version": "0.0.2",
-  "description": "LiftMaster support for Homebridge: https://github.com/nfarina/homebridge",
+  "description": "GarageRemote support for Homebridge: https://github.com/nfarina/homebridge",
   "license": "ISC",
   "keywords": [
     "homebridge-plugin"
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/nfarina/homebridge-liftmaster.git"
+    "url": "git://github.com/gustafnilklint/homebridge-GarageRemote.git"
   },
   "bugs": {
-    "url": "http://github.com/nfarina/homebridge-liftmaster/issues"
+    "url": "http://github.com/gustafnilklint/homebridge-GarageRemote/issues"
   },
   "engines": {
     "node": ">=0.12.0",

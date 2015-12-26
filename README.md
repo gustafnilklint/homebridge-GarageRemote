@@ -1,29 +1,16 @@
 
-# LiftMaster Plugin
+# GarageRemote Plugin
 
 Example config.json:
 
     {
       "accessories": [
         {
-          "accessory": "LiftMaster",
-          "name": "Garage Door",
-          "username": "<your MyQ email address>",
-          "password": "<your MyQ password>"
-        }
-      ]
-    }
-
-If you have multiple garage doors connected to your LiftMaster account, the plugin will print out an error followed by the multiple device IDs it found. You'll need to use these IDs to enter your doors as separate accessories:
-
-    {
-      "accessories": [
-        {
-          "accessory": "LiftMaster",
-          "name": "Side Garage Door",
-          "username": "<your MyQ email address>",
-          "password": "<your MyQ password>",
-          "deviceID": "<device ID>"
+            "accessory": "webIoPi",
+            "name": "Garage door",
+            "lock_state_url": "<ur to your device for checking lock state>",
+            "toggle_open_close_url": "<toggle url>",
+            "authstring" : "Basic auth string"
         }
       ]
     }
