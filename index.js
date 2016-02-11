@@ -1,9 +1,10 @@
 var request = require("request");
-var types;
+var Service, Characteristic;
 
 module.exports = function(homebridge) {
-  types = homebridge.hapLegacyTypes;
-
+  Service = homebridge.hap.Service;
+  Characteristic = homebridge.hap.Characteristic;
+  
   homebridge.registerAccessory("homebridge-GarageRemote", "GarageRemote", GarageRemoteAccessory);
 }
 
@@ -16,153 +17,67 @@ function GarageRemoteAccessory(log, config) {
   
   // device info
   this.name = config["name"];
+  
+  this.service = new Service.GarageDoorOpener(this.name)
+  
+  this.service
+  	.getCharacteristic(Characteristic.CurrentDoorState)
+  	.on('get', this.getState.bind(this)); // binds to prototype method getState below.
+  	
+  this.service
+  	.getCharacteristic(Characteristic.TargetDoorState)
+    .on('get', this.getState.bind(this))
+    .on('set', this.setState.bind(this)); // binds to prototype method setState below
+
+  this.service
+  	.getCharacteristic(Characteristic.ObstructionDetected)
+    .on('get', this.getObstruction.bind(this));
 }
 
-GarageRemoteAccessory.prototype = {
 
-  httpRequest: function(url, method, callback) {
-    var options = {
-    	url: url,
-    	method: method,
-    	headers: { 'Authorization' : this.auth_string }
-        };
-    request(options, function(error,response,body){
-      callback(error, response, body)
-    })
-  },
+GarageRemoteAccessory.prototype.getState = function(callback) {
+  this.log("Getting current state...");
+  
+  request.get({
+    url: this.currentState_url,
+    headers: { 'Authorization' : this.auth_string }
+  }, function(err, response, body) {
+    
+    if (!err && response.statusCode == 200) {
+      var locked = body == "1"
+      this.log("Lock state is %s", locked);
+      callback(null, locked); // success
+    }
+    else {
+      this.log("Error getting state (status code %s): %s", response.statusCode, err);
+      callback(err);
+    }
+  }.bind(this));
+}
 
+GarageRemoteAccessory.prototype.setState = function(callback) {
+  this.log("Toggle open/stop/close");
+  
+  request.post({
+    url: this.toggle_url,
+    headers: { 'Authorization' : this.auth_string }
+  }, function(err, response, body) {
+    
+    if (!err && response.statusCode == 200) {
+      this.log("Toggle was successful");
+      callback(null, true); // success
+    }
+    else {
+      this.log("Failed to toggle (status code %s): %s", response.statusCode, err);
+      callback(err);
+    }
+  }.bind(this));
+}
 
-	togglePortState: function(){
-		url = this.toggle_url;
-		//this.log("Toggle port state, url:" + url + "With outh: " + this.auth);
-		
-		this.httpRequest(url, "POST", function(error, response, body){
-      		if (error) {
-        		return console.error('toggle portState failed:', error);
-      		}else{
-        		return console.log('togglePort succeded!');
-      		}
-    	});
-	},
-	
-	getLockState: function(callback){
-		url = this.currentState_url;
-		this.log("getting lock state for garage");
-		
-		this.httpRequest(url, "GET", function(error, response, body){
-      		if (error) {
-        		return console.error('get current state failed:', error);
-      		}else{
-        		var locked = body == "1"
-        		callback(locked);
-      		}
-    	});
-	},
+GarageRemoteAccessory.prototype.getObstruction = function(callback) {
+	{ callback(null, false); }.bind()
+}
 
-  getServices: function() {
-    var that = this;
-    return [{
-      sType: types.ACCESSORY_INFORMATION_STYPE,
-      characteristics: [{
-        cType: types.NAME_CTYPE,
-        onUpdate: null,
-        perms: ["pr"],
-        format: "string",
-        initialValue: this.name,
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "Name of the accessory",
-        designedMaxLength: 255
-      },{
-        cType: types.MANUFACTURER_CTYPE,
-        onUpdate: null,
-        perms: ["pr"],
-        format: "string",
-        initialValue: "GarageRemote",
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "Manufacturer",
-        designedMaxLength: 255
-      },{
-        cType: types.MODEL_CTYPE,
-        onUpdate: null,
-        perms: ["pr"],
-        format: "string",
-        initialValue: "Rev-1",
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "Model",
-        designedMaxLength: 255
-      },{
-        cType: types.SERIAL_NUMBER_CTYPE,
-        onUpdate: null,
-        perms: ["pr"],
-        format: "string",
-        initialValue: "A1S2NASF88EW",
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "SN",
-        designedMaxLength: 255
-      },{
-        cType: types.IDENTIFY_CTYPE,
-        onUpdate: null,
-        perms: ["pw"],
-        format: "bool",
-        initialValue: false,
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "Identify Accessory",
-        designedMaxLength: 1
-      }]
-    },{
-      sType: types.GARAGE_DOOR_OPENER_STYPE,
-      characteristics: [{
-        cType: types.NAME_CTYPE,
-        onUpdate: null,
-        perms: ["pr"],
-        format: "string",
-        initialValue: "Garage Door",
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "Name of service",
-        designedMaxLength: 255
-      },{
-        cType: types.CURRENT_DOOR_STATE_CTYPE,
-        onUpdate: function(value) { that.getLockState(null); },
-        onRead: function(callback) { that.getLockState(callback); },
-        perms: ["pr","ev"],
-        format: "int",
-        initialValue: 0,
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "BlaBla",
-        designedMinValue: 0,
-        designedMaxValue: 4,
-        designedMinStep: 1,
-        designedMaxLength: 1
-      },{
-        cType: types.TARGET_DOORSTATE_CTYPE,
-        onUpdate: function(value) { that.togglePortState(value); },
-        perms: ["pr","pw","ev"],
-        format: "int",
-        initialValue: 1,
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "BlaBla",
-        designedMinValue: 0,
-        designedMaxValue: 1,
-        designedMinStep: 1,
-        designedMaxLength: 1
-      },{
-        cType: types.OBSTRUCTION_DETECTED_CTYPE,
-        onUpdate: function(value) { that.log("Obstruction detected: " + value); },
-        perms: ["pr","ev"],
-        format: "bool",
-        initialValue: false,
-        supportEvents: false,
-        supportBonjour: false,
-        manfDescription: "BlaBla"
-      }]
-    }];
-  }
-};
+GarageRemoteAccessory.prototype.getServices = function() {
+  return [this.service];
+}
