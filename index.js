@@ -5,7 +5,7 @@ module.exports = function(homebridge) {
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
   
-  homebridge.registerAccessory("homebridge-GarageRemote", "GarageRemote", GarageRemoteAccessory);
+  homebridge.registerAccessory("my-garage-remote", "homebridge-garageremote", GarageRemoteAccessory);
 }
 
 function GarageRemoteAccessory(log, config) {
@@ -30,8 +30,8 @@ function GarageRemoteAccessory(log, config) {
     .on('set', this.setState.bind(this)); // binds to prototype method setState below
 
   this.service
-  	.getCharacteristic(Characteristic.ObstructionDetected)
-    .on('get', this.getObstruction.bind(this));
+      .getCharacteristic(Characteristic.ObstructionDetected)
+    .on('get', function() { return false;} );		// stub out since this info is not available.
 }
 
 
@@ -72,10 +72,6 @@ GarageRemoteAccessory.prototype.setState = function(callback) {
       callback(err);
     }
   }.bind(this));
-}
-
-GarageRemoteAccessory.prototype.getObstruction = function(callback) {
-	{ callback(null, false); }.bind()
 }
 
 GarageRemoteAccessory.prototype.getServices = function() {
