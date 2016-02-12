@@ -5,7 +5,7 @@ module.exports = function(homebridge) {
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
   
-  homebridge.registerAccessory("my-garage-remote", "homebridge-garageremote", GarageRemoteAccessory);
+  homebridge.registerAccessory("my-garage-remote", "homebridge-GarageRemote", GarageRemoteAccessory);
 }
 
 function GarageRemoteAccessory(log, config) {
