@@ -64,8 +64,7 @@ GarageRemoteAccessory.prototype.setState = function(callback) {
   }, function(err, response, body) {
     
     if (!err && response.statusCode == 200) {
-      this.log("Toggle was successful");
-      callback(null); // success
+      this.log("Toggle was successful");  // success
     }
     else {
       this.log("Failed to toggle (status code %s): %s", response.statusCode, err);
