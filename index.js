@@ -61,9 +61,9 @@ GarageRemoteAccessory.prototype.getState = function(callback) {
   }.bind(this));
 }
 
-GarageRemoteAccessory.prototype.setState = function(callback) {
-  this.log("Toggle open/stop/close");
-  var local_callback = callback;
+GarageRemoteAccessory.prototype.setState = function(state, callback) {
+  this.log("Toggle open/stop/close requesting state:", state);
+
   request.post({
     url: this.toggle_url,
     headers: { 'Authorization' : this.auth_string }
@@ -71,11 +71,11 @@ GarageRemoteAccessory.prototype.setState = function(callback) {
     
     if (!err && response.statusCode == 200) {
       this.log("Toggle was successful");  // success
-      local_callback(null);
+      callback(null);
     }
     else {
       this.log("Failed to toggle (status code %s): %s", response.statusCode, err);
-      local_callback(err);
+      callback(err);
     }
   }.bind(this));
 }
