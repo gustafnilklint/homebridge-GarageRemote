@@ -38,15 +38,21 @@ function GarageRemoteAccessory(log, config) {
 GarageRemoteAccessory.prototype.getState = function(callback) {
   this.log("Getting current state...");
   
+  var local_callback = callback;
+  
   request.get({
     url: this.currentState_url,
     headers: { 'Authorization' : this.auth_string }
   }, function(err, response, body) {
     
     if (!err && response.statusCode == 200) {
-      var locked = body == "1"
-      this.log("Lock state is %s", locked);
-      callback(null, locked); // success
+    	var locked = body == "1";
+		this.log("Lock state is %s", locked);
+    	if (locked) {
+        	local_callback( null, Characteristic.CurrentDoorState.OPEN );
+    	}else{
+        	local_callback( null, Characteristic.CurrentDoorState.CLOSED );
+    	}
     }
     else {
       this.log("Error getting state (status code %s): %s", response.statusCode, err);
@@ -57,7 +63,7 @@ GarageRemoteAccessory.prototype.getState = function(callback) {
 
 GarageRemoteAccessory.prototype.setState = function(callback) {
   this.log("Toggle open/stop/close");
-  
+  var local_callback = callback;
   request.post({
     url: this.toggle_url,
     headers: { 'Authorization' : this.auth_string }
@@ -65,10 +71,11 @@ GarageRemoteAccessory.prototype.setState = function(callback) {
     
     if (!err && response.statusCode == 200) {
       this.log("Toggle was successful");  // success
+      local_callback(null);
     }
     else {
       this.log("Failed to toggle (status code %s): %s", response.statusCode, err);
-      callback(err);
+      local_callback(err);
     }
   }.bind(this));
 }
