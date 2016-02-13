@@ -49,9 +49,9 @@ GarageRemoteAccessory.prototype.getState = function(callback) {
     	var locked = body == "1";
 		this.log("Lock state is %s", locked);
     	if (locked) {
-        	local_callback( null, Characteristic.CurrentDoorState.OPEN );
-    	}else{
         	local_callback( null, Characteristic.CurrentDoorState.CLOSED );
+    	}else{
+        	local_callback( null, Characteristic.CurrentDoorState.OPEN );
     	}
     }
     else {
