@@ -5,7 +5,7 @@ module.exports = function(homebridge) {
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
   
-  homebridge.registerAccessory("my-garage-remote", "homebridge-GarageRemote", GarageRemoteAccessory);
+  homebridge.registerAccessory("garageporten", "homebridge-GarageRemote", GarageRemoteAccessory);
 }
 
 function GarageRemoteAccessory(log, config) {
@@ -22,12 +22,12 @@ function GarageRemoteAccessory(log, config) {
   
   this.service
   	.getCharacteristic(Characteristic.CurrentDoorState)
-  	.on('get', this.getState.bind(this)); // binds to prototype method getState below.
+  	.on('get', this.getDoorState.bind(this)); // binds to prototype method getDoorState below.
   	
   this.service
   	.getCharacteristic(Characteristic.TargetDoorState)
-    .on('get', this.getState.bind(this))
-    .on('set', this.setState.bind(this)); // binds to prototype method setState below
+    .on('get', function() { return Characteristic.CurrentDoorState.CLOSED;})
+    .on('set', this.setDoorState.bind(this)); // binds to prototype method setDoorState below
 
   this.service
       .getCharacteristic(Characteristic.ObstructionDetected)
@@ -35,10 +35,8 @@ function GarageRemoteAccessory(log, config) {
 }
 
 
-GarageRemoteAccessory.prototype.getState = function(callback) {
-  this.log("Getting current state...");
-  
-  var local_callback = callback;
+GarageRemoteAccessory.prototype.getDoorState = function(callback) {
+  this.log("Getting current door state...");
   
   request.get({
     url: this.currentState_url,
@@ -49,9 +47,9 @@ GarageRemoteAccessory.prototype.getState = function(callback) {
     	var locked = body == "1";
 		this.log("Lock state is %s", locked);
     	if (locked) {
-        	local_callback( null, Characteristic.CurrentDoorState.CLOSED );
+        	callback( null, Characteristic.CurrentDoorState.CLOSED );
     	}else{
-        	local_callback( null, Characteristic.CurrentDoorState.OPEN );
+        	callback( null, Characteristic.CurrentDoorState.OPEN );
     	}
     }
     else {
@@ -61,7 +59,7 @@ GarageRemoteAccessory.prototype.getState = function(callback) {
   }.bind(this));
 }
 
-GarageRemoteAccessory.prototype.setState = function(state, callback) {
+GarageRemoteAccessory.prototype.setDoorState = function(state, callback) {
   this.log("Toggle open/stop/close requesting state:", state);
 
   request.post({
