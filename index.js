@@ -26,7 +26,7 @@ function GarageRemoteAccessory(log, config) {
   	
   this.service
   	.getCharacteristic(Characteristic.TargetDoorState)
-  	.on('get', this.getTargetDoorState.bind(this)); // binds to prototype method getTarge...
+  	.on('get', this.getTargetDoorState.bind(this)) // binds to prototype method getTarge...
     //.on('get', function() { return Characteristic.TargetDoorState.CLOSED;})
     .on('set', this.setDoorState.bind(this)); // binds to prototype method setDoorState below
 
